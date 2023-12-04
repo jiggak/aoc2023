@@ -34,50 +34,45 @@ export class Board {
         this.cols = cols;
     }
 
-    doTheThing() {
+    doTheThing(gearTest = false) {
         let total = 0;
 
-        for (let i = 0; i<this.data.length; i++) {
-            const cell = this.data[i];
-
-            if (cell.isNumber && this.cellHasAdjacentSymbol(cell)) {
-                total += cell.getNumber();
-                i = cell.lastDigit().index;
+        for (const cell of this.data) {
+            if (cell.isSymbol) {
+                const numbers = this.adjacentNumbers(cell);
+                if (!gearTest) {
+                    numbers.forEach(num => total += num);
+                } else {
+                    if (cell.content == '*' && numbers.length == 2) {
+                        total += numbers[0] * numbers[1];
+                    }
+                }
             }
         }
 
         return total;
     }
 
-    cellHasAdjacentSymbol(cell) {
-        // this function assumes cell is the first char of part number
+    // FIXME this doesn't account for numbers that are adjacent to multiple
+    // symbols, it will include those numbers twice in the results.
+    // This doesn't seem to matter with the problem input data, but it bugs me.
+    adjacentNumbers(cell) {
+        const coord = this.indexToCoords(cell.index);
 
-        // top left coord of search
-        const topLeft = this.indexToCoords(cell.index);
-        topLeft.x --;
-        topLeft.y --;
-
-        // bottom right coord of search
-        const bottomRight = this.indexToCoords(cell.lastDigit().index);
-        bottomRight.x ++;
-        bottomRight.y ++;
-
-        return this.boxHasAdjacentSymbol(topLeft, bottomRight);
-    }
-
-    boxHasAdjacentSymbol(p1, p2) {
         const limitX = this.cols - 1;
         const limitY = this.rows - 1;
 
         let search = [];
 
-        const xRange = range(p1.x, p2.x + 1 - p1.x);
+        const xRange = range(coord.x - 1, 3);
 
         // generate search coords around rect from top left
-        search.push(...xRange.map(x => new Coord(x, p1.y)));
-        search.push(new Coord(p2.x, p1.y + 1));
-        search.push(...xRange.map(x => new Coord(x, p2.y)));
-        search.push(new Coord(p1.x, p1.y + 1));
+        search.push(...xRange.map(x => new Coord(x, coord.y - 1)));
+        search.push(new Coord(coord.x + 1, coord.y));
+        search.push(...xRange.map(x => new Coord(x, coord.y + 1)));
+        search.push(new Coord(coord.x - 1, coord.y));
+
+        let result = new Set();
 
         for (const coord of search) {
             if (coord.x < 0 || coord.x > limitX || coord.y < 0 || coord.y > limitY) {
@@ -86,12 +81,12 @@ export class Board {
             }
 
             const i = this.coordsToIndex(coord);
-            if (this.data[i].isSymbol) {
-                return true;
+            if (this.data[i].isNumber) {
+                result.add(this.data[i].number());
             }
         }
 
-        return false;
+        return Array.from(result);
     }
 
     indexToCoords(index) {
@@ -127,28 +122,17 @@ class Cell {
         }
     }
 
-    lastDigit() {
-        if (!this.next) {
-            return this;
-        }
-
-        let cursor = this.next;
+    number() {
+        let cursor = this;
         while (true) {
-            if (cursor.next) {
-                cursor = cursor.next;
+            if (cursor.previous) {
+                cursor = cursor.previous;
             } else {
-                return cursor;
+                break;
             }
         }
-    }
 
-    getNumber() {
-        if (!this.next) {
-            return parseInt(this.content);
-        }
-
-        let number = this.content;
-        let cursor = this.next;
+        let number = '';
 
         while (true) {
             number += cursor.content;
@@ -156,9 +140,11 @@ class Cell {
             if (cursor.next) {
                 cursor = cursor.next;
             } else {
-                return parseInt(number);
+                break;
             }
         }
+
+        return parseInt(number);
     }
 }
 
