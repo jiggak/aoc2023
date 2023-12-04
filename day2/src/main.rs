@@ -70,7 +70,6 @@ fn main() {
         }
     };
 
-    //
     let part2 = env::var("PART2").is_ok();
 
     let mut total = 0;
@@ -82,8 +81,7 @@ fn main() {
             line_parts.next().expect("cube sets").trim().split(';')
         );
 
-        game.next().expect("literal 'Game'");
-        let game_number = game.next()
+        let game_number = game.nth(1)
             .expect("game number")
             .parse::<i32>()
             .expect("game number integer");
@@ -93,11 +91,18 @@ fn main() {
             results: cube_sets.map(|set| {
                 set.trim().split(',').map(|x| {
                     let mut cube_parts = x.trim().splitn(2, ' ');
-                    let (count, color) = (
-                        cube_parts.next().expect("cube count").parse::<i32>().expect("cube count integer"),
-                        CubeColor::from_str(cube_parts.next().expect("cube color")).expect("cube color")
-                    );
-                    (color, count)
+
+                    let cube_count = cube_parts.next()
+                        .expect("cube count")
+                        .parse::<i32>()
+                        .expect("cube count integer");
+
+                    let cube_colour = cube_parts.next()
+                        .expect("cube colour")
+                        .parse::<CubeColor>()
+                        .expect("cube colour enum");
+
+                    ( cube_colour, cube_count )
                 }).collect()
             }).collect()
         };
