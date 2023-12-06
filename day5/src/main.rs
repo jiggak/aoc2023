@@ -1,15 +1,14 @@
 use std::{
-    cmp::min, collections::HashMap, env, fs::read_to_string, ops::Range, process,
-    str::FromStr
+    cmp::min, env, fs::read_to_string, ops::Range, process, str::FromStr
 };
 
 struct Almanac {
     pub seeds: Vec<Range<u64>>,
-    category_maps: HashMap<Category, Vec<CategoryMap>>
+    categories: Vec<Category>
 }
 
 #[derive(Debug, Hash, PartialEq, Eq, Copy, Clone)]
-enum Category {
+enum CategoryName {
     SeedToSoil,
     SoilToFertilizer,
     FertilizerToWater,
@@ -19,21 +18,26 @@ enum Category {
     HumidityToLocation
 }
 
-impl FromStr for Category {
+impl FromStr for CategoryName {
     type Err = ();
 
-    fn from_str(input: &str) -> Result<Category, Self::Err> {
+    fn from_str(input: &str) -> Result<CategoryName, Self::Err> {
         match input {
-            "seed-to-soil" => Ok(Category::SeedToSoil),
-            "soil-to-fertilizer" => Ok(Category::SoilToFertilizer),
-            "fertilizer-to-water" => Ok(Category::FertilizerToWater),
-            "water-to-light" => Ok(Category::WaterToLight),
-            "light-to-temperature" => Ok(Category::LightToTemp),
-            "temperature-to-humidity" => Ok(Category::TempToHumidity),
-            "humidity-to-location" => Ok(Category::HumidityToLocation),
+            "seed-to-soil" => Ok(CategoryName::SeedToSoil),
+            "soil-to-fertilizer" => Ok(CategoryName::SoilToFertilizer),
+            "fertilizer-to-water" => Ok(CategoryName::FertilizerToWater),
+            "water-to-light" => Ok(CategoryName::WaterToLight),
+            "light-to-temperature" => Ok(CategoryName::LightToTemp),
+            "temperature-to-humidity" => Ok(CategoryName::TempToHumidity),
+            "humidity-to-location" => Ok(CategoryName::HumidityToLocation),
             _ => Err(())
         }
     }
+}
+
+struct Category {
+    _name: CategoryName,
+    maps: Vec<CategoryMap>
 }
 
 struct CategoryMap {
@@ -46,12 +50,12 @@ impl Almanac {
         let mut lines = file_data.lines();
 
         let mut seeds: Vec<Range<u64>> = vec![];
-        let mut category_maps = HashMap::new();
+        let mut categories: Vec<Category> = vec![];
 
         loop {
             match lines.next() {
                 Some(line) if line.starts_with("seeds:") => {
-                    if option_env!("PART2").is_some() {
+                    if env::var("PART2").is_ok() {
                         let parts: Vec<_> = line.replace("seeds: ", "")
                             .split(" ")
                             .map(|s| s.parse::<u64>().unwrap())
@@ -70,8 +74,10 @@ impl Almanac {
                 },
                 Some(line) if line.ends_with("map:") => {
                     let category = line.replace(" map:", "")
-                        .parse::<Category>()
+                        .parse::<CategoryName>()
                         .expect("category string to 'Category' enum");
+
+                    let mut category_maps: Vec<CategoryMap> = vec![];
 
                     loop {
                         let line = match lines.next() {
@@ -91,14 +97,16 @@ impl Almanac {
                             dst: dst_start..(dst_start + len)
                         };
 
-                        let mapping = category_maps.entry(category)
-                            .or_insert_with(|| vec![]);
-
-                        mapping.push(map);
+                        category_maps.push(map);
                     }
+
+                    categories.push(Category {
+                        _name: category,
+                        maps: category_maps
+                    });
                 },
                 Some(_) => {
-                    // ruh-roh, line not handled... unless intended "of cource"
+                    // ruh-roh, line not handled... unless intended "of course"
                 },
                 None => break
             }
@@ -106,7 +114,7 @@ impl Almanac {
 
         Almanac {
             seeds,
-            category_maps
+            categories
         }
     }
 
@@ -123,29 +131,17 @@ impl Almanac {
     }
 
     fn seed_to_location(&self, seed: u64) -> u64 {
-        let categories = [
-            Category::SeedToSoil,
-            Category::SoilToFertilizer,
-            Category::FertilizerToWater,
-            Category::WaterToLight,
-            Category::LightToTemp,
-            Category::TempToHumidity,
-            Category::HumidityToLocation
-        ];
-
         let mut val = seed;
 
-        for category in categories {
-            val = self.map_value(category, val);
+        for category in &self.categories {
+            val = Almanac::map_value(category, val);
         }
 
         val
     }
 
-    fn map_value(&self, category:Category, val:u64) -> u64 {
-        let maps = self.category_maps.get(&category).unwrap();
-
-        for map in maps {
+    fn map_value(category: &Category, val:u64) -> u64 {
+        for map in &category.maps {
             if map.src.contains(&val) {
                 return map.dst.start + (val - map.src.start);
             }
