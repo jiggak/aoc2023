@@ -18,7 +18,22 @@ enum HandType {
 /// Cards orderd weakest to strongest
 #[derive(Debug, Clone, Copy, PartialOrd, Ord, PartialEq, Eq, Hash)]
 enum Card {
-    Two, Three, Four, Five, Six, Seven, Eight, Nine, T, J, Q, K, A
+    Two = 2,
+    Three = 3,
+    Four = 4,
+    Five = 5,
+    Six = 6,
+    Seven = 7,
+    Eight = 8,
+    Nine = 9,
+    T = 10,
+    #[cfg(wildcard)]
+    J = 1,
+    #[cfg(not(wildcard))]
+    J = 11,
+    Q = 12,
+    K = 13,
+    A = 14
 }
 
 impl FromStr for Card {
@@ -82,19 +97,48 @@ impl Hand {
             .expect("card bid")
             .parse::<u32>().expect("card bid as int");
 
-        let type_ = get_hand_type(&cards);
+        let type_ = if cfg!(wildcard) {
+            get_hand_type_wildcard(&cards)
+        } else {
+            get_hand_type(&cards)
+        };
 
-        Hand {
-            cards,
-            bid,
-            type_
-        }
+        Hand { cards, bid, type_ }
     }
 
     fn load(file_content: &str) -> Vec<Self> {
         file_content.lines()
             .map(|l| Hand::parse(l))
             .collect()
+    }
+}
+
+fn get_hand_type_wildcard(cards: &Vec<Card>) -> HandType {
+    if cards.contains(&Card::J) {
+        let all_cards = [
+            Card::Two, Card::Three, Card::Four, Card::Five, Card::Six,
+            Card::Seven, Card::Eight, Card::Nine, Card::T, Card::Q, Card::K,
+            Card::A
+        ];
+
+        let mut possible_hands: Vec<HandType> = vec![];
+
+        for card in all_cards {
+            let cards: Vec<_> = cards.iter()
+                .map(|c| match c {
+                    Card::J => card,
+                    c => *c
+                })
+                .collect();
+
+            possible_hands.push(get_hand_type(&cards));
+        }
+
+        possible_hands.sort(); // sort weakest to strongest
+
+        *possible_hands.last().unwrap() // take strongest possible
+    } else {
+        get_hand_type(&cards)
     }
 }
 
@@ -141,38 +185,30 @@ fn main() {
     // first arg is command name
     let cmd_name = args.next().unwrap();
 
-    let mut run_part2 = false;
     let input_file = match args.next() {
-        Some(a) if a == "-p2" => {
-            run_part2 = true;
-            args.next()
-        },
-        Some(a) => Some(a),
-        None => None
-    }.unwrap_or_else(|| print_usage_exit(&cmd_name));
+        Some(f) => f,
+        None => {
+            print_usage_exit(&cmd_name);
+        }
+    };
 
     let file_content = fs::read_to_string(input_file)
         .expect("input file should exist and be text file");
 
-    let total = if run_part2 {
-        part2(&file_content)
-    } else {
-        part1(&file_content)
-    };
+    let total = total_hand_winnings(&file_content);
 
     println!("{total}");
 }
 
 fn print_usage_exit(me: &str) -> ! {
-    println!("{me} [-p2] input.txt");
+    println!("{me} input.txt");
     process::exit(1)
 }
 
-fn part1(file_data: &str) -> usize {
+fn total_hand_winnings(file_data: &str) -> usize {
     let mut hands = Hand::load(file_data);
 
     hands.sort(); // sort weakest to strongest
-    // hands.reverse(); // strongest to weakest
 
     let mut total = 0;
     for (i, hand) in hands.iter().enumerate() {
@@ -180,8 +216,4 @@ fn part1(file_data: &str) -> usize {
     }
 
     total
-}
-
-fn part2(_file_data: &str) -> usize {
-    0
 }
