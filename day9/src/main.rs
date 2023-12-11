@@ -6,10 +6,10 @@ fn main() {
     // first arg is command name
     let cmd_name = args.next().unwrap();
 
-    let mut _run_part2 = false;
+    let mut run_part2 = false;
     let input_file = match args.next() {
         Some(a) if a == "-p2" => {
-            _run_part2 = true;
+            run_part2 = true;
             args.next()
         },
         Some(a) => Some(a),
@@ -22,7 +22,12 @@ fn main() {
     let file_content = fs::read_to_string(input_file)
         .expect("input file should exist and be text file");
 
-    let total = part1(&file_content);
+    let total = if run_part2 {
+        part2(&file_content)
+    } else {
+        part1(&file_content)
+    };
+
     println!("{total}");
 }
 
@@ -46,6 +51,31 @@ fn part1(data: &str) -> i32 {
             .last().unwrap();
 
         total += next_value;
+    }
+
+    total
+}
+
+fn part2(data: &str) -> i32 {
+    let mut total = 0;
+
+    for line in data.lines() {
+        let history: Vec<_> = line.split(' ')
+            .map(|s| s.parse::<i32>().unwrap())
+            .collect();
+
+        let diffs = generate_diffs(history);
+
+        let first_value: i32 = diffs.iter()
+            .map(|s| s.first().unwrap())
+            .rev()
+            .scan(0, |acc, x| {
+                *acc = *x - *acc;
+                Some(*acc)
+            })
+            .last().unwrap();
+
+        total += first_value;
     }
 
     total
