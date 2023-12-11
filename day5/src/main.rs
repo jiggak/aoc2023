@@ -46,7 +46,7 @@ struct CategoryMap {
 }
 
 impl Almanac {
-    fn load(file_data: String) -> Self {
+    fn load(file_data: String, part2: bool) -> Self {
         let mut lines = file_data.lines();
 
         let mut seeds: Vec<Range<u64>> = vec![];
@@ -55,7 +55,7 @@ impl Almanac {
         loop {
             match lines.next() {
                 Some(line) if line.starts_with("seeds:") => {
-                    if env::var("PART2").is_ok() {
+                    if part2 {
                         let parts: Vec<_> = line.replace("seeds: ", "")
                             .split(" ")
                             .map(|s| s.parse::<u64>().unwrap())
@@ -157,18 +157,23 @@ fn main() {
     // first arg is command name
     let cmd_name = args.next().unwrap();
 
+    let mut run_part2 = false;
     let input_file = match args.next() {
-        Some(f) => f,
-        None => {
-            println!("{cmd_name} [input.txt]");
-            process::exit(1);
-        }
-    };
+        Some(a) if a == "-p2" => {
+            run_part2 = true;
+            args.next()
+        },
+        Some(a) => Some(a),
+        None => None
+    }.unwrap_or_else(|| {
+        println!("{cmd_name} [input.txt]");
+        process::exit(1);
+    });
 
     let file_content = read_to_string(input_file)
         .expect("input file should exist and be text file");
 
-    let almanac = Almanac::load(file_content);
+    let almanac = Almanac::load(file_content, run_part2);
     let min_loc = almanac.find_lowest_location();
 
     println!("{min_loc}");

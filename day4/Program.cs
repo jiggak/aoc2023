@@ -4,12 +4,14 @@
     {
         if (args.Length < 1)
         {
-            Console.Error.WriteLine($"Program.Main [input.txt]");
+            Console.Error.WriteLine($"Program.Main [-p2] input.txt");
             return 1;
         }
 
-        var part2 = Environment.GetEnvironmentVariable("PART2") != null;
-        var cards = ReadCards(args[0]);
+        var part2 = args.Where(a => a == "-p2").Any();
+        var filePath = args.Last();
+
+        var cards = ReadCards(filePath);
 
         int total;
 

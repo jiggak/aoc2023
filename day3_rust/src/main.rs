@@ -176,20 +176,25 @@ fn main() {
     // first arg is command name
     let cmd_name = args.next().unwrap();
 
+    let mut run_part2 = false;
     let input_file = match args.next() {
-        Some(f) => f,
-        None => {
-            println!("{cmd_name} [input.txt]");
-            process::exit(1);
-        }
-    };
+        Some(a) if a == "-p2" => {
+            run_part2 = true;
+            args.next()
+        },
+        Some(a) => Some(a),
+        None => None
+    }.unwrap_or_else(|| {
+        println!("{cmd_name} [input.txt]");
+        process::exit(1);
+    });
 
     let file_content = read_to_string(input_file)
         .expect("input file should exist and be text file");
 
     let board = Board::load(file_content);
 
-    let total = if env::var("PART2").is_err() {
+    let total = if !run_part2 {
         board.part_number_total()
     } else {
         board.gear_ratio_total()

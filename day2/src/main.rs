@@ -62,15 +62,18 @@ fn main() {
     // first arg is command name
     let cmd_name = args.next().unwrap();
 
+    let mut run_part2 = false;
     let input_file = match args.next() {
-        Some(f) => f,
-        None => {
-            println!("{cmd_name} [input.txt]");
-            process::exit(1);
-        }
-    };
-
-    let part2 = env::var("PART2").is_ok();
+        Some(a) if a == "-p2" => {
+            run_part2 = true;
+            args.next()
+        },
+        Some(a) => Some(a),
+        None => None
+    }.unwrap_or_else(|| {
+        println!("{cmd_name} [input.txt]");
+        process::exit(1);
+    });
 
     let mut total = 0;
 
@@ -107,7 +110,7 @@ fn main() {
             }).collect()
         };
 
-        if part2 {
+        if run_part2 {
             let max_set = game.max_cube_set();
             total += max_set.0 * max_set.1 * max_set.2;
         } else {

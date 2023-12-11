@@ -27,9 +27,9 @@ enum Card {
     Eight = 8,
     Nine = 9,
     T = 10,
-    #[cfg(wildcard)]
+    #[cfg(feature="wildcard")]
     J = 1,
-    #[cfg(not(wildcard))]
+    #[cfg(not(feature="wildcard"))]
     J = 11,
     Q = 12,
     K = 13,
@@ -97,7 +97,7 @@ impl Hand {
             .expect("card bid")
             .parse::<u32>().expect("card bid as int");
 
-        let type_ = if cfg!(wildcard) {
+        let type_ = if cfg!(feature="wildcard") {
             get_hand_type_wildcard(&cards)
         } else {
             get_hand_type(&cards)
