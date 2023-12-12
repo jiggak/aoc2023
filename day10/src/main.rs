@@ -28,32 +28,26 @@ impl PipeArea {
         }
     }
 
-    fn count_loop_steps(&self) -> usize {
+    fn iter(&self) -> PipeAreaIterator {
         let start_index = self.pipes.iter()
             .position(|pipe| *pipe == PipeTile::Start)
             .expect("Pipes should have start tile");
 
         // get first direction that has pipe tile next to start
-        let start_direction = Cardinal::iter()
+        let start_direction = Cardinal::into_iter()
             .find(|dir| self.has_connection(start_index, dir))
             .unwrap();
 
-        let mut next = (start_index, Some(*start_direction));
-        let mut count = 0;
-
-        // println!("start {} {:?}", next.0, next.1);
-
-        loop {
-            next = self.next(next.0, &next.1.unwrap());
-            // println!("next {} {:?}", next.0, next.1);
-            if self.pipes[next.0] == PipeTile::Start {
-                break;
-            }
-
-            count += 1;
+        PipeAreaIterator {
+            area: self,
+            index: start_index,
+            direction: Some(start_direction)
         }
+    }
 
-        count
+    fn count_loop_steps(&self) -> usize {
+        self.iter().take_while(|p| **p != PipeTile::Start)
+            .count()
     }
 
     fn index_to_point(&self, index: usize) -> (i32, i32) {
@@ -67,20 +61,6 @@ impl PipeArea {
         point.1 as usize * self.cols + point.0 as usize
     }
 
-    fn next(&self, from_index: usize, dir: &Cardinal) -> (usize, Option<Cardinal>) {
-        let next_index = self.next_index(from_index, dir).unwrap();
-
-        if let Some((dir1, dir2)) = self.pipes[next_index].directions() {
-            if dir.opposite() == dir1 {
-                (next_index, Some(dir2))
-            } else {
-                (next_index, Some(dir1))
-            }
-        } else {
-            (next_index, None)
-        }
-    }
-
     /// Returns true if there is a pipe connection from the index in the given direction
     fn has_connection(&self, from_index: usize, dir: &Cardinal) -> bool {
         self.next_index(from_index, dir)
@@ -88,6 +68,8 @@ impl PipeArea {
             .unwrap_or_default()
     }
 
+    /// Returns next tile index in the given direction, or None if navigating
+    /// in the direction goes out of bounds
     fn next_index(&self, from_index: usize, dir: &Cardinal) -> Option<usize> {
         let limit_x = (self.cols - 1) as i32;
         let limit_y = (self.rows - 1) as i32;
@@ -118,8 +100,8 @@ enum Cardinal {
 }
 
 impl Cardinal {
-    fn iter() -> impl Iterator<Item = &'static Cardinal> {
-        [Cardinal::North, Cardinal::East, Cardinal::South, Cardinal::West].iter()
+    fn into_iter() -> impl Iterator<Item = Cardinal> {
+        [Cardinal::North, Cardinal::East, Cardinal::South, Cardinal::West].into_iter()
     }
 
     fn opposite(&self) -> Self {
@@ -177,6 +159,40 @@ impl PipeTile {
         } else {
             false
         }
+    }
+
+    fn out_direction(&self, in_direction: &Cardinal) -> Option<Cardinal> {
+        if let Some((dir1, dir2)) = self.directions() {
+            if in_direction.opposite() == dir1 {
+                Some(dir2)
+            } else {
+                Some(dir1)
+            }
+        } else {
+            None
+        }
+    }
+}
+
+struct PipeAreaIterator<'a> {
+    area: &'a PipeArea,
+    index: usize,
+    direction: Option<Cardinal>
+}
+
+impl<'a> Iterator for PipeAreaIterator<'a> {
+    type Item = &'a PipeTile;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        if let Some(direction) = self.direction {
+            if let Some(next) = self.area.next_index(self.index, &direction) {
+                self.index = next;
+                self.direction = self.area.pipes[next].out_direction(&direction);
+                return Some(&self.area.pipes[next]);
+            }
+        }
+
+        None
     }
 }
 
